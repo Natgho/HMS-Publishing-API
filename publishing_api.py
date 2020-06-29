@@ -36,14 +36,16 @@ class HmsPublishingApi:
             'client_secret': self.client_secret
         }
         resp = requests.post(self.base_api + "/oauth2/v1/token", json=api_credentials)
-        access_token = None
         if resp.status_code == HTTPStatus.OK:
             creds = resp.json()
-            print(f"Access Token: {creds['access_token']}\n valid: {creds['expires_in']}")
-            access_token = creds['access_token']
+            try:
+                print(f"Access Token: {creds['access_token']}\n valid: {creds['expires_in']}")
+                self.access_token = creds['access_token']
+            except Exception as e:
+                print(resp.json().get('ret').get('msg'))
         else:
             print(f"Error: {resp.status_code} {resp.reason}")
-        return access_token
+        return self.access_token
 
     def get_app_id(self):
         """
@@ -51,9 +53,6 @@ class HmsPublishingApi:
         https://developer.huawei.com/consumer/en/doc/development/AppGallery-connect-References/agcapi-appid-list_v2
         :return:
         """
-        if not self.access_token:
-            self.access_token = self.get_access_token()
-
         if self.app_id:
             return self.app_id
 
@@ -76,12 +75,6 @@ class HmsPublishingApi:
         return self.app_id
 
     def get_upload_url(self, upload_file_type='apk'):
-        if not self.access_token:
-            self.access_token = self.get_access_token()
-
-        if not self.app_id:
-            self.app_id = self.get_app_id()
-
         if self.upload_url:
             return self.upload_url
 
@@ -102,10 +95,6 @@ class HmsPublishingApi:
         return self.upload_url
 
     def upload_app(self, file_name):
-        if not self.access_token:
-            self.access_token = self.get_access_token()
-        if not self.app_id:
-            self.app_id = self.get_app_id()
         if not self.upload_url:
             self.upload_url = self.get_upload_url()
 
@@ -135,11 +124,6 @@ class HmsPublishingApi:
         https://developer.huawei.com/consumer/en/doc/development/AppGallery-connect-References/agcapi-app-info_query_v2
         :return:
         """
-        if not self.access_token:
-            self.access_token = self.get_access_token()
-
-        if not self.app_id:
-            self.app_id = self.get_app_id()
 
         header = {
             'client_id': self.client_id,
@@ -152,9 +136,31 @@ class HmsPublishingApi:
         resp = requests.get(self.base_api + "/publish/v2/app-info", headers=header, params=params)
         return resp.json()
 
+    def update_app_info(self, update_params: dict):
+        """
+        How to update app information?
+        https://developer.huawei.com/consumer/en/doc/development/AppGallery-connect-References/agcapi-app-info_update_v2
+
+        :param update_params: key value pairs you want to update
+        :return:
+        """
+        header = {
+            'client_id': self.client_id,
+            'Authorization': 'Bearer ' + self.access_token,
+        }
+        params = {
+            'appId': self.app_id,
+        }
+        body = dict()
+        for key, value in update_params.items():
+            body[key] = value
+
+        resp = requests.put(self.base_api + "/publish/v2/app-info", headers=header, data=body, params=params)
+        if resp.status_code == HTTPStatus.OK:
+            return resp.json()
+        return resp
+
 
 if __name__ == '__main__':
     my_hms_api = HmsPublishingApi(client_id, client_secret, package_name)
-    # respii = my_hms_api.upload_app('sample-apk.apk')
-    # pprint(respii)
     my_hms_api.get_app_id()
