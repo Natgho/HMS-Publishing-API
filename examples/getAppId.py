@@ -3,5 +3,5 @@ from publishing_api import HmsPublishingApi
 from pub_env import client_id, client_secret, package_name
 
 if __name__ == '__main__':
-    my_api = HmsPublishingApi(client_id, client_secret, package_name)
+    my_api = HmsPublishingApi(client_id, client_secret, package_name, debug=True)
     app_id = my_api.get_app_id()

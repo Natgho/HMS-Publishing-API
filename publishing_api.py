@@ -1,7 +1,11 @@
 # Created by SezerBozkir<admin@sezerbozkir.com> at 6/26/2020
+"""
+https://developer.huawei.com/consumer/en/doc/development/AppGallery-connect-References/agcapi-appid-list_v2
+This is one of client for HMS Publishing API. Not all endpoints implemented.
+For first step implemented critical ones. If you need to more, feel free to contact me.
+"""
 import requests
 from http import HTTPStatus
-from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 
 class HmsPublishingApi:
@@ -13,10 +17,11 @@ class HmsPublishingApi:
     base_api = 'https://connect-api.cloud.huawei.com/api'
     publishing_api_link = 'https://www.huawei.com/auth/agc/publish'
 
-    def __init__(self, client_id, client_secret, package_name):
+    def __init__(self, client_id, client_secret, package_name, debug=False):
         self.client_id = client_id
         self.client_secret = client_secret
         self.package_name = package_name
+        self.debug = debug
 
         self.access_token = self.get_access_token()
         self.header = {
@@ -24,6 +29,9 @@ class HmsPublishingApi:
             'Authorization': 'Bearer ' + self.access_token,
         }
         self.app_id = self.get_app_id()
+        self.params = {
+            'appId': self.app_id,
+        }
 
     def get_access_token(self):
         """
@@ -43,7 +51,8 @@ class HmsPublishingApi:
         if resp.status_code == HTTPStatus.OK:
             creds = resp.json()
             try:
-                print(f"Access Token: {creds['access_token']}\n valid: {creds['expires_in']}")
+                if self.debug:
+                    print(f"Access Token: {creds['access_token']}\n valid: {creds['expires_in']}")
                 self.access_token = creds['access_token']
             except:
                 print(resp.json().get('ret').get('msg'))
@@ -67,7 +76,8 @@ class HmsPublishingApi:
         }
         resp = requests.get(self.base_api + "/publish/v2/appid-list", headers=self.header, params=params)
         if resp.status_code == HTTPStatus.OK:
-            print(f"App name: {resp.json()['appids'][0].get('key')}, App ID: {resp.json()['appids'][0].get('value')}")
+            if self.debug:
+                print(f"App name: {resp.json()['appids'][0].get('key')}, App ID: {resp.json()['appids'][0].get('value')}")
             self.app_id = resp.json()['appids'][0].get('value')
         else:
             print(f"Error: {resp.status_code} {resp.reason}")
@@ -120,13 +130,10 @@ class HmsPublishingApi:
                         'size': str(first_phase.json()['result']['UploadFileRsp']['fileInfoList'][0]['size'])
                     }]
                 }
-                params = {
-                    'appId': self.app_id
-                }
                 second_phase = requests.put(self.base_api + "/publish/v2/app-file-info",
                                             headers=self.header,
                                             json=body,
-                                            params=params)
+                                            params=self.params)
 
         return second_phase
 
@@ -136,29 +143,22 @@ class HmsPublishingApi:
         https://developer.huawei.com/consumer/en/doc/development/AppGallery-connect-References/agcapi-app-info_query_v2
         :return:
         """
-
-        params = {
-            'appId': self.app_id,
-        }
-        resp = requests.get(self.base_api + "/publish/v2/app-info", headers=self.header, params=params)
+        resp = requests.get(self.base_api + "/publish/v2/app-info", headers=self.header, params=self.params)
         return resp.json()
 
-    def update_app_info(self, update_params: dict):
+    def update_app_info(self, updated_details: dict):
         """
         How to update app information?
         https://developer.huawei.com/consumer/en/doc/development/AppGallery-connect-References/agcapi-app-info_update_v2
 
-        :param update_params: key value pairs you want to update
+        :param updated_details: key value pairs you want to update
         :return:
         """
-        params = {
-            'appId': self.app_id,
-        }
         body = dict()
-        for key, value in update_params.items():
+        for key, value in updated_details.items():
             body[key] = value
 
-        resp = requests.put(self.base_api + "/publish/v2/app-info", headers=self.header, data=body, params=params)
+        resp = requests.put(self.base_api + "/publish/v2/app-info", headers=self.header, data=body, params=self.params)
         if resp.status_code == HTTPStatus.OK:
             return resp.json()
         return resp
@@ -176,9 +176,6 @@ class HmsPublishingApi:
         https://developer.huawei.com/consumer/en/doc/development/AppGallery-connect-References/agcapi-app-language-info_update_v2
         :return:
         """
-        params = {
-            'appId': self.app_id,
-        }
         body = {
             'lang': lang,
             'appName': app_name
@@ -194,5 +191,16 @@ class HmsPublishingApi:
         resp = requests.put(self.base_api + "/publish/v2/app-language-info",
                             headers=self.header,
                             data=body,
-                            params=params)
+                            params=self.params)
+        return resp
+
+    def release_app(self):
+        """
+        https://developer.huawei.com/consumer/en/doc/development/AppGallery-connect-References/agcapi-app-submit_v2
+        This API is used to submit a request for app approval. Before calling this API,
+        ensure that the app information is complete and the app software package has been uploaded.
+        Callers of this API include account holders, administrators, and app administrators.
+        :return:
+        """
+        resp = requests.post(self.base_api + '/publish/v2/app-submit', headers= self.header, params=self.params)
         return resp
