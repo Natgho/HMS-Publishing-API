@@ -123,7 +123,6 @@ class HmsPublishingApi:
             if first_phase.status_code == HTTPStatus.OK:
                 body = {
                     'fileType': 5,
-                    'lang': 'tr-TR',
                     'files': [{
                         'fileName': file_name,
                         'fileDestUrl': first_phase.json()['result']['UploadFileRsp']['fileInfoList'][0]['fileDestUlr'],
