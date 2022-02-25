@@ -98,9 +98,12 @@ class HmsPublishingApi:
         resp = requests.get(self.base_api + "/publish/v2/upload-url", params=params, headers=header)
         if resp.status_code == HTTPStatus.OK:
             creds = resp.json()
+            if self.debug:
+                print ("get_upload_url: "+repr(creds))
             self.upload_url = creds['uploadUrl']
             self.chunk_upload_url = creds['chunkUploadUrl']
             self.auth_code = creds['authCode']
+        else: raise Exception("get_upload_url not OK")
         return self.upload_url
 
     def upload_app(self, file_path, file_name, file_type):
@@ -113,14 +116,18 @@ class HmsPublishingApi:
 
         req_body = {
             'authCode': self.auth_code,
-            'fileCount': 1
+            'fileCount': 1,
+            'parseType': 1
         }
+        if self.debug: print ("Uploading "+file_path)
         with open(file_path, 'rb') as f:
             first_phase = requests.post(self.upload_url,
-                                        files={file_name: f},
+                                        files={"file": f},
                                         data=req_body,
                                         headers=header)
             if first_phase.status_code == HTTPStatus.OK:
+                if self.debug:
+                    print ("first_phase response is "+repr(first_phase.json()))
                 body = {
                     'fileType': 5,
                     'files': [{
@@ -133,6 +140,7 @@ class HmsPublishingApi:
                                             headers=self.header,
                                             json=body,
                                             params=self.params)
+            else: raise Exception("first phase failed: "+repr(first_phase.json()))
 
         return second_phase
 
